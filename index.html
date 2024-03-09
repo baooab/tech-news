@@ -167,7 +167,7 @@
         },
         formatCategories() {
           const categories = Object.keys(this.formatComments)
-          return ['快讯', '文章', '发布', '资源', '工具', '库'].filter(i => categories.includes(i))
+          return ['行业动态', '文章', '发布', '资源', '工具', '库'].filter(i => categories.includes(i))
         }
       },
       watch: {
@@ -195,10 +195,11 @@
           this.initComments(true)
         },
         clearCache() {
-          let text;
           if (confirm("Confirm clear Cache?") === true) {
             localStorage.removeItem(CACHE_KEY)
-          window.location.reload()
+            setTimeout(() => {
+              window.location.reload()
+            }, 0)
           }
 
         },
