@@ -11,15 +11,17 @@ const fs = require('node:fs/promises');
   const { window: { document: jsDoc } } = new JSDOM(response2.data, { JsUrl })
 
   const today = new Date();
-  const dayOfWeek = today.getUTCDay();
+  // const dayOfWeek = today.getUTCDay();
 
   let docs = []
 
-  if (dayOfWeek === 4) {
-    docs = [feDoc]
-  } else if (dayOfWeek === 5) {
-    docs = [jsDoc, feDoc]
-  }
+  // if (dayOfWeek === 4) {
+    // docs = [feDoc]
+  // } else if (dayOfWeek === 5) {
+    // docs = [jsDoc, feDoc]
+  // }
+
+  docs = [jsDoc, feDoc]
 
   if (docs.length === 0) {
     console.log('do nothing')
