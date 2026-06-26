@@ -1,289 +1,171 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+  <title>Weekly Feed</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
   <style>
-    details>summary {
-      list-style-type: '🫣';
+    .article-img {
+      display: block;
+      max-width: 100%;
+      margin-top: 0.75rem;
+      border-radius: 4px;
     }
 
-    details[open]>summary {
-      list-style-type: '🧐';
+    .article-description {
+      margin-top: 0.75rem;
+    }
+
+    .article-description :is(a, code, em) {
+      word-break: break-word;
     }
   </style>
-  <script type="importmap">
-    {
-      "imports": {
-        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
-      }
-    }
-  </script>
 </head>
 
 <body>
-  <div id="app" class="container my-6 content">
-    <div v-if="data">
-
-      <div class="columns">
-        <div class="column">
-          <span v-if="status" :class="['tag', status === 'saved!' ? 'is-success' : 'is-warning']"
-            style="position: fixed; top: 2rem; left: 2rem;">
-            {{ status }}
-          </span>
-
-          <h2>收集 & 评论</h2>
-
-          <h3>Articles</h3>
-          <ul>
-            <template v-for="article in data.articles">
-              <li>
-                <div>
-                  <span v-if="comments[article.link].comment">✅</span>
-                  <span class="tag is-link is-light mr-1" v-html="article.category"></span>
-                  <template v-if="article.title">
-                    <span class="has-text-black has-text-link ">{{ article.title }}</span>
-                    <a v-if="article.link" class="is-size-7 ml-3" :href="article.link" target="_blank">| 点击阅读原文</a>
-                    <span class="tag is-light ml-1">{{ article.source }}</span>
-                    <span class="tag is-iight ml-1" v-html="article.author"></span>
-                  </template>
-                </div>
-                <div>
-                  <details>
-                    <summary><span v-html="article.description" /></summary>
-                    <div class="">
-                      <div>
-                        <div class="field">
-                          <p class="control">
-                            <input class="input" placeholder="标题" v-model="comments[article.link].title" />
-                          </p>
-                        </div>
-                        <div class="field">
-                          <p class="control">
-                            <input class="input" placeholder="链接" v-model="comments[article.link].realLink" />
-                          </p>
-                        </div>
-                        <div class="field">
-                          <div class="select">
-                            <select v-model="comments[article.link].category">
-                              <option>文章</option>
-                              <option>行业动态</option>
-                              <option>发布</option>
-                              <option>资源</option>
-                              <option>工具</option>
-                              <option>库</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div class="field">
-                          <p class="control">
-                            <textarea class="textarea" placeholder="我的想法"
-                              v-model="comments[article.link].comment"></textarea>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-                </div>
-              </li>
-            </template>
-
-          </ul>
-
-        </div>
-        <div class="column">
-          <h2>预览 & 导出</h2>
-
-          <div class="buttons">
-            <button class="button is-info" @click="output">导出 Markdown</button>
-            <button class="button is-danger" @click="clearCache">Clear Cache</button>
-          </div>
-
-          <div id="preview" ref="previewRef">
-            <template v-for="category in formatCategories">
-              <h2>{{ category }}</h2>
-              <template v-for="(article, idx) in formatComments[category]">
-		<p></p>
-                <p>
-		  <a :href="article.realLink || article.link" v-html="`${idx + 1}、${article.title}`"
-                    :title="article.title" target="_blank"></a>
-		</p>
-                <template v-if="article.img">
-		  <p></p>
-		  <p><img :src="article.img" alt="" style="display: block;"></p>
-		</template>
-		<template v-if="article.comment.trim()">
-		  <p></p>
-                  <p v-html="article.comment.trim()"></p>
-		</template>
-              </template>
-            </template>
-          </div>
-
+  <div class="container my-6 content">
+    <div class="level mb-4">
+      <div class="level-left">
+        <div>
+          <h1 class="title is-4 mb-1">Weekly Feed</h1>
+          <p class="subtitle is-6 has-text-grey" id="meta"></p>
         </div>
       </div>
+      <div class="level-right">
+        <button id="copyBtn" class="button is-primary" disabled>复制 JSON</button>
+      </div>
+    </div>
 
-    </div>
-    <div v-else>
-      loading...
-    </div>
+    <span id="status" class="tag is-hidden mb-4"></span>
+    <div id="articleList"></div>
+    <p id="loading" class="has-text-grey">loading...</p>
   </div>
 
   <script>
-    function fetchData() {
-      return new Promise(resolve => {
-        fetch('./weeklyFeed.json')
-          .then(response => response.json())
-          .then(data => resolve(data))
-      })
+    const articleList = document.getElementById('articleList')
+    const copyBtn = document.getElementById('copyBtn')
+    const statusEl = document.getElementById('status')
+    const metaEl = document.getElementById('meta')
+    const loadingEl = document.getElementById('loading')
+
+    let feedData = null
+
+    function showStatus(text, type = 'is-success') {
+      statusEl.textContent = text
+      statusEl.className = `tag mb-4 ${type}`
+      clearTimeout(showStatus.timer)
+      showStatus.timer = setTimeout(() => {
+        statusEl.className = 'tag is-hidden mb-4'
+      }, 2000)
     }
-  </script>
-  <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
-  <script type="module">
-    import { createApp } from 'vue'
 
-    const CACHE_KEY = '__weekly_cache'
-
-    createApp({
-      data() {
-        return {
-          data: {},
-          comments: {},
-          timer: null,
-          status: null
-        }
-      },
-      mounted() {
-        this.getCacheData()
-        this.fetchData()
-      },
-      computed: {
-        formatComments() {
-          return Object.entries(this.comments).reduce((res, [link, { category, ...others }]) => {
-            if (!res[category]) {
-              res[category] = []
-            }
-
-            res[category].push({ link, ...others })
-
-            return res
-          }, {})
-        },
-        formatCategories() {
-          const categories = Object.keys(this.formatComments)
-          return ['行业动态', '文章', '发布', '资源', '工具', '库'].filter(i => categories.includes(i))
-        }
-      },
-      watch: {
-        comments: {
-          handler(newValue, oldValue) {
-            this.autosave(newValue)
-          },
-          deep: true
-        }
-      },
-      methods: {
-        async fetchData() {
-          const data = await fetchData()
-          console.log(data)
-          this.data = data
-          this.initComments()
-        },
-        getCacheData() {
-          const cachedComments = localStorage.getItem(CACHE_KEY)
-          if (cachedComments) {
-            this.comments = JSON.parse(cachedComments)
-          }
-        },
-        clearCache() {
-          let text;
-          if (confirm("Confirm clear Cache?") === true) {
-            localStorage.removeItem(CACHE_KEY)
-
-            // 延迟重载，否则上一步移除缓存数据的操作可能会失败
-            setTimeout(() => {
-              window.location.reload()
-            }, 660)
-          }
-
-        },
-        initComments() {
-          this.data.articles.forEach(article => {
-            if (!this.comments[article.link]) {
-              this.comments[article.link] = {
-                ...article,
-                category: '文章',
-                title: article.title ?? article.description,
-                realLink: article.link,
-                comment: ''
-              }
-            }
-          });
-        },
-        autosave(value) {
-          clearTimeout(this.timer)
-          this.status = 'waiting...'
-          this.timer = setTimeout(() => {
-            this.status = 'saved!'
-            localStorage.setItem(CACHE_KEY, JSON.stringify(value))
-          }, 1500)
-        },
-        output() {
-          console.log(this.$refs['previewRef'])
-
-          const markdown = new TurndownService().keep(['sup']).turndown(this.$refs['previewRef'].innerHTML)
-
-          navigator.clipboard.writeText(markdown)
-            .then(console.log)
-            .catch(console.log)
-
-          // console.log(markdown)
-        }
+    function copyText(text) {
+      if (navigator.clipboard?.writeText) {
+        return navigator.clipboard.writeText(text).then(() => true).catch(() => false)
       }
-    }).mount('#app')
+      return Promise.resolve(false)
+    }
+
+    function copyTextFallback(text) {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      textarea.setSelectionRange(0, text.length)
+      let ok = false
+      try {
+        ok = document.execCommand('copy')
+      } catch {}
+      document.body.removeChild(textarea)
+      return ok
+    }
+
+    async function copyJson() {
+      if (!feedData) return
+
+      const text = JSON.stringify(feedData, null, 2)
+      const copied = await copyText(text) || copyTextFallback(text)
+
+      if (copied) {
+        showStatus('已复制到剪贴板')
+      } else {
+        showStatus('复制失败，请手动选择复制', 'is-danger')
+      }
+    }
+
+    function renderArticle(article) {
+      const title = article.title || article.description?.replace(/<[^>]+>/g, '').slice(0, 80) || 'Untitled'
+      const category = article.category || ''
+      const author = article.author || ''
+      const source = article.source || ''
+      const link = article.link || ''
+      const description = article.description || ''
+      const img = article.img ? `<img class="article-img" src="${escapeAttr(article.img)}" alt="">` : ''
+
+      return `
+        <article class="box mb-4">
+          <div class="mb-2">
+            ${category ? `<span class="tag is-link is-light mr-2">${category}</span>` : ''}
+            <strong>${escapeHtml(title)}</strong>
+            ${link ? `<a class="is-size-7 ml-2" href="${escapeAttr(link)}" target="_blank" rel="noopener">阅读原文</a>` : ''}
+            ${source ? `<span class="tag is-light ml-2">${escapeHtml(source)}</span>` : ''}
+            ${author ? `<span class="tag is-light ml-1">${escapeHtml(author.trim())}</span>` : ''}
+          </div>
+          ${img}
+          ${description ? `<div class="article-description">${description}</div>` : ''}
+        </article>
+      `
+    }
+
+    function renderArticles(articles) {
+      const mid = Math.ceil(articles.length / 2)
+      const left = articles.slice(0, mid)
+      const right = articles.slice(mid)
+
+      articleList.innerHTML = `
+        <div class="columns">
+          <div class="column">${left.map(renderArticle).join('')}</div>
+          <div class="column">${right.map(renderArticle).join('')}</div>
+        </div>
+      `
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+    }
+
+    function escapeAttr(text) {
+      return escapeHtml(text).replace(/'/g, '&#39;')
+    }
+
+    fetch('./weeklyFeed.json')
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return response.json()
+      })
+      .then(data => {
+        feedData = data
+        loadingEl.remove()
+        metaEl.textContent = `${data.articles?.length ?? 0} 篇文章`
+        renderArticles(data.articles || [])
+        copyBtn.disabled = false
+      })
+      .catch(err => {
+        loadingEl.textContent = `加载失败: ${err.message}`
+      })
+
+    copyBtn.addEventListener('click', copyJson)
   </script>
-<!-- Code injected by live-server -->
-<script>
-	// <![CDATA[  <-- For SVG support
-	if ('WebSocket' in window) {
-		(function () {
-			function refreshCSS() {
-				var sheets = [].slice.call(document.getElementsByTagName("link"));
-				var head = document.getElementsByTagName("head")[0];
-				for (var i = 0; i < sheets.length; ++i) {
-					var elem = sheets[i];
-					var parent = elem.parentElement || head;
-					parent.removeChild(elem);
-					var rel = elem.rel;
-					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
-						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
-						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
-					}
-					parent.appendChild(elem);
-				}
-			}
-			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
-			var address = protocol + window.location.host + window.location.pathname + '/ws';
-			var socket = new WebSocket(address);
-			socket.onmessage = function (msg) {
-				if (msg.data == 'reload') window.location.reload();
-				else if (msg.data == 'refreshcss') refreshCSS();
-			};
-			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
-				console.log('Live reload enabled.');
-				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
-			}
-		})();
-	}
-	else {
-		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
-	}
-	// ]]>
-</script>
 </body>
 
 </html>
