@@ -4,7 +4,7 @@ const { getWeekly } = require('./weekly');
 const fs = require('node:fs/promises');
 
 ; (async function () {
-  const JsUrl = 'https://javascriptweekly.com/issues/latest';
+  const JsUrl = 'https://javascriptweekly.com/latest';
   const FeUrl = 'https://frontendfoc.us/latest';
   const [response1, response2] = await Promise.all([axios.get(FeUrl), axios.get(JsUrl)])
   const { window: { document: feDoc } } = new JSDOM(response1.data, { FeUrl })
