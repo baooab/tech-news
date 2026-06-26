@@ -8,7 +8,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 20 * * 3,5' # Executes at 8 PM (20:00) UTC every Wednesday and Friday.
+    - cron: '0 10 * * 4,5' # 北京时间周四、周五 18:00（UTC 10:00）
     
 permissions:
   contents: write
