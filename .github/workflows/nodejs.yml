@@ -9,7 +9,6 @@ on:
       - main
   schedule:
     - cron: '0 10 * * 4,5' # 北京时间周四、周五 18:00（UTC 10:00）
-    - cron: '5 16 * * *' # 北京时间每天 00:05（UTC 16:05）
   workflow_dispatch: # 允许手动触发
 
 permissions:
