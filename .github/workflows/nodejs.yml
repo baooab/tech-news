@@ -9,7 +9,8 @@ on:
       - main
   schedule:
     - cron: '0 10 * * 4,5' # 北京时间周四、周五 18:00（UTC 10:00）
-    
+  workflow_dispatch: # 允许手动触发
+
 permissions:
   contents: write
 
@@ -19,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
